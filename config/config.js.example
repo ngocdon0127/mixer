@@ -1,0 +1,9 @@
+module.exports = {
+	app: {
+		ip: '0.0.0.0',
+		port: '9999'
+	},
+	database: {
+		url: 'mongodb://user:pwd@127.0.0.1:27017/mixer'
+	},
+}
