@@ -11,6 +11,7 @@ const Participation = mongoose.model('Participation')
 const RSAUtils = require('../utils/RSAUtils')
 const fs = require('fs');
 const path = require('path')
+const HOST = 'http://10.9.0.1:2000'
 
 const PAR_STT_PENDING = 'pending'
 const PAR_STT_RECEIVED = 'received'
@@ -30,6 +31,10 @@ const publicKey2Address = global.myCustomVars.function.publicKey2Address;
 const mainKey = global.myCustomVars.const.mainKey;
 
 router.get('/', (req, res) => {
+  return res.redirect('/participation')
+})
+
+router.get('/server', (req, res) => {
   async(() => {
     let privateKeys = {}
     let fileNames = fs.readdirSync(path.join(__dirname, '../pems'), {encoding: 'utf8'});
@@ -43,7 +48,7 @@ router.get('/', (req, res) => {
       let publicKey = key.exportPublicKey();
       let addr = publicKey2Address(publicKey);
       let r = await (new Promise((resolve, reject) => {
-        request('http://localhost:2000/wallet/' + addr, (err, response, body) => {
+        request(HOST + '/wallet/' + addr, (err, response, body) => {
           if (err) {
             console.log(err);
             return resolve(null)
@@ -104,7 +109,7 @@ router.get('/participation-permalink/:pid', (req, res) => {
     }
     let participation = r.participation;
     r = await (new Promise((resolve, reject) => {
-      request('http://localhost:2000/wallet/' + participation.kesc, (err, response, body) => {
+      request(HOST + '/wallet/' + participation.kesc, (err, response, body) => {
         if (err) {
           console.log(err);
           return resolve(null)
@@ -175,7 +180,7 @@ router.post('/participation', (req, res) => {
       })
     }
     let currentBlockChainLen = await (new Promise((resolve, reject) => {
-      request('http://localhost:2000/healthy', (err, response, body) => {
+      request(HOST + '/healthy', (err, response, body) => {
         if (err) {
           console.log(err);
           return resolve(null)

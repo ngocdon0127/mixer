@@ -11,6 +11,7 @@ const CryptoJS = require('crypto-js')
 const SHA256 = CryptoJS.SHA256;
 const RSAUtils = require('../../utils/RSAUtils')
 const stringify = require('json-stable-stringify')
+const HOST = 'http://10.9.0.1:2000'
 
 require('seedrandom');
 
@@ -55,8 +56,8 @@ function updatePendingParticipation() {
       let participation = participations[i]
       let kesc = participation.kesc;
       let r = await (new Promise((resolve, reject) => {
-        // console.log('http://localhost:2000/wallet/' + kesc);
-        request('http://localhost:2000/wallet/' + kesc, (err, response, body) => {
+        // console.log(HOST + '/wallet/' + kesc);
+        request(HOST + '/wallet/' + kesc, (err, response, body) => {
           if (err) {
             console.log(err);
             return resolve(null)
@@ -85,7 +86,7 @@ function updatePendingParticipation() {
 function processValidParticipation() {
   async(() => {
     let currentBlockChainLen = await (new Promise((resolve, reject) => {
-      request('http://localhost:2000/healthy', (err, response, body) => {
+      request(HOST + '/healthy', (err, response, body) => {
         if (err) {
           console.log(err);
           return resolve(null)
@@ -127,7 +128,7 @@ function processValidParticipation() {
       let publicKey = key.exportPublicKey();
       let addr = publicKey2Address(publicKey);
       let r = await (new Promise((resolve, reject) => {
-        request('http://localhost:2000/wallet/' + addr, (err, response, body) => {
+        request(HOST + '/wallet/' + addr, (err, response, body) => {
           if (err) {
             console.log(err);
             return resolve(null)
@@ -168,7 +169,7 @@ function processValidParticipation() {
       // check valid participation
       let p = participation.p;
       let block = await (new Promise((resolve, reject) => {
-        request(`http://localhost:2000/block/${participation.t1 + participation.w}?datatype=json`, (err, response, body) => {
+        request(HOST + `/block/${participation.t1 + participation.w}?datatype=json`, (err, response, body) => {
           if (err) {
             console.log(err);
             return resolve(false)
@@ -207,7 +208,7 @@ function processValidParticipation() {
       
       let r = await (new Promise((resolve, reject) => {
         request.post({
-          url: 'http://localhost:2000/transaction',
+          url: HOST + '/transaction',
           body: JSON.stringify({inputs: transactionBody.inputs, outputs: transactionBody.outputs}),
           headers: {
             'Content-Type': 'application/json'
@@ -341,8 +342,8 @@ function finishProcessingParticipation() {
     for (var i = 0; i < participations.length; i++) {
       let participation = participations[i]
       let r = await (new Promise((resolve, reject) => {
-        // console.log('http://localhost:2000/wallet/' + kesc);
-        request('http://localhost:2000/transaction/' + participation.txHash, (err, response, body) => {
+        // console.log(HOST + '/wallet/' + kesc);
+        request(HOST + '/transaction/' + participation.txHash, (err, response, body) => {
           if (err) {
             console.log(err);
             return resolve(null)
