@@ -12,6 +12,7 @@ module.exports = function (mongoose) {
     n: Number,
     w: Number,
     timestamp: Date,
+    txHash: String, // save the hash of transaction: kesc' => kout. available when status = 'processing'
     status: String, // pending, received, processing, rejected, success
   });
 

@@ -1,0 +1,35 @@
+		<!-- sidebar: style can be found in sidebar.less -->
+		<section class="sidebar">
+			<!-- Sidebar user panel -->
+			<div class="user-panel">
+				<div class="pull-left image">
+					<img src="<%= (('avatar' in user) && ('original' in user.avatar) && (user.avatar.original)) ? ('/' + user.avatar.original) : '/admin/dist/img/user4-128x128.jpg' %>" class="img-circle" alt="User Image" onclick="window.location.href = '/users/me'">
+				</div>
+				<div class="pull-left info">
+					<p><%= user.fullname %></p>
+					<a href="#"><i class="fa fa-circle text-success"></i> Đang trực tuyến</a>
+				</div>
+			</div>
+			<!-- search form -->
+			<!--<form action="#" method="get" class="sidebar-form">
+				<div class="input-group">
+					<input type="text" name="q" class="form-control" placeholder="Tìm kiếm...">
+							<span class="input-group-btn">
+								<button type="submit" name="search" id="search-btn" class="btn btn-flat"><i class="fa fa-search"></i>
+								</button>
+							</span>
+				</div>
+			</form>-->
+			<!-- /.search form -->
+			<!-- sidebar menu: : style can be found in sidebar.less -->
+			<ul class="sidebar-menu">
+				<li class="header">MAIN NAVIGATOR</li>
+				<li class="<%= (sidebar.active == '/participation') ? 'active' : '' %>">
+					<a href="/participation">
+						<i class="fa fa-user"></i> 
+						<span>Participation</span>
+					</a>
+				</li>
+			</ul>
+		</section>
+		<!-- /.sidebar -->

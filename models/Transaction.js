@@ -128,5 +128,29 @@ module.exports = (inputCoins, outputCoins, skipValid) => {
     return true;
   }
 
+  transaction.hashTx = function () {
+    let obj = {
+      index: this.index,
+      inputCoins: this.inputCoins,
+      outputCoins: this.outputCoins
+    }
+    // console.log(stringify(obj));
+    // console.log(SHA256(stringify(obj)).toString());
+    return SHA256(stringify(obj)).toString()
+  }
+
+  transaction.seal = function () {
+    let obj = {
+      index: this.index,
+      inputCoins: this.inputCoins,
+      outputCoins: this.outputCoins
+    }
+    // console.log(stringify(obj));
+    // console.log(SHA256(stringify(obj)).toString());
+    return this.hash = SHA256(stringify(obj)).toString()
+  }
+
+  transaction.seal();
+
   return (skipValid || transaction.validAmount()) ? transaction : null;
 }

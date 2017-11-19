@@ -12,11 +12,14 @@ const SHA256 = CryptoJS.SHA256;
 const RSAUtils = require('../../utils/RSAUtils')
 const stringify = require('json-stable-stringify')
 
+require('seedrandom');
+
 const PAR_STT_PENDING = 'pending'
 const PAR_STT_RECEIVED = 'received'
 const PAR_STT_PROCESSING = 'processing'
 const PAR_STT_REJECTED = 'rejected'
 const PAR_STT_SUCCESS = 'success'
+const PAR_STT_RETAINED = 'retained'
 
 setInterval(() => {
   updatePendingParticipation()
@@ -24,6 +27,10 @@ setInterval(() => {
 
 setInterval(() => {
   processValidParticipation()
+}, 2000)
+
+setInterval(() => {
+  finishProcessingParticipation()
 }, 2000)
 
 function updatePendingParticipation() {
@@ -77,6 +84,24 @@ function updatePendingParticipation() {
 
 function processValidParticipation() {
   async(() => {
+    let currentBlockChainLen = await (new Promise((resolve, reject) => {
+      request('http://localhost:2000/healthy', (err, response, body) => {
+        if (err) {
+          console.log(err);
+          return resolve(null)
+        }
+        if (response.statusCode != 200) {
+          console.log(`GOT ${response.statusCode} while getting info about blockchain`);
+          return resolve(null)
+        }
+        body = JSON.parse(body);
+        // console.log(body);
+        return resolve(body.chainLength > 0 ? body.chainLength : 0)
+      })
+    }))
+    if (!currentBlockChainLen) {
+      return console.log('Cannot not get info about blockchain');
+    }
     let participations = await (new Promise((resolve, reject) => {
       Participation.find({status: PAR_STT_RECEIVED}, (err, pars) => {
         if (err) {
@@ -140,6 +165,36 @@ function processValidParticipation() {
     }
     for (var i = 0; (i < participations.length) && (Object.keys(coins).length > 0); i++) {
       let participation = participations[i];
+      // check valid participation
+      let p = participation.p;
+      let block = await (new Promise((resolve, reject) => {
+        request(`http://localhost:2000/block/${participation.t1 + participation.w}?datatype=json`, (err, response, body) => {
+          if (err) {
+            console.log(err);
+            return resolve(false)
+          }
+          if (response.statusCode != 200) {
+            console.log(body);
+            console.log(`GOT ${response.statusCode} while trying to get blockchain info`);
+            return resolve(false)
+            
+          }
+          body = JSON.parse(body)
+          return resolve(body.block)
+        })
+      }))
+      if (!block) {
+        continue
+      }
+      console.log(`t2: ${participation.t2}, nonce: ${participation.n}, proof: ${block.proof}`);
+      let modifiedRandom = new Math.seedrandom((participation.n | block.proof) + '')
+      let random = modifiedRandom();
+      console.log('random: ', random);
+      if (random < p) {
+        console.log(`Participation ${participation._id} retained. Nice`);
+        participation.status = PAR_STT_RETAINED
+        return participation.save()
+      }
       let transactionBody = createTransactionBody({addresses: [participation.kout], amounts: [CHUNK],
         coins,
         keys: rsakeys,
@@ -176,11 +231,13 @@ function processValidParticipation() {
         continue
       }
       if (r.status == 'success') {
+        console.log(r);
         let noUsedCoins = transactionBody.inputs.length;
         console.log('now splice', noUsedCoins, 'coins');
         rsakeys.splice(0, noUsedCoins)
         coins.splice(0, noUsedCoins)
-        console.log(`sent ${CHUNK} BTC to ${participation._id}`);
+        console.log(`sent ${CHUNK} BTC to ${participation.kout}`);
+        participation.txHash = r.transaction.hash
         participation.status = PAR_STT_PROCESSING
         participation.save()
       }
@@ -261,4 +318,53 @@ function createTransactionBody(bundle) {
     })
   }
   return {inputs, outputs}
+}
+
+function finishProcessingParticipation() {
+  async(() => {
+    let participations = await (new Promise((resolve, reject) => {
+      Participation.find({status: PAR_STT_PROCESSING}, (err, pars) => {
+        if (err) {
+          console.log(err);
+          return resolve(null)
+        }
+        if (pars.length < 1) {
+          return resolve(null)
+        }
+        return resolve(pars)
+      })
+    }))
+    if (!participations) {
+      return;
+    }
+
+    for (var i = 0; i < participations.length; i++) {
+      let participation = participations[i]
+      let r = await (new Promise((resolve, reject) => {
+        // console.log('http://localhost:2000/wallet/' + kesc);
+        request('http://localhost:2000/transaction/' + participation.txHash, (err, response, body) => {
+          if (err) {
+            console.log(err);
+            return resolve(null)
+          }
+          if (response.statusCode != 200) {
+            console.log(`GOT ${response.statusCode} while getting info about ${kesc}`);
+            return resolve(null)
+          }
+          body = JSON.parse(body);
+          resolve({status: 'success', transaction: body.transaction, confirmations: body.confirmations})
+        })
+      }))
+      if (!r) {
+        continue
+      }
+      // console.log(r);
+      if (r.confirmations >= 3) {
+        console.log('participation ' + participation._id + ' sent enough money to kout');
+        participation.status = PAR_STT_SUCCESS
+        participation.save()
+      }
+    }
+    
+  })()
 }

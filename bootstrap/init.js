@@ -2,7 +2,7 @@ const request = require('request')
 const CryptoJS = require('crypto-js');
 const SHA256 = CryptoJS.SHA256;
 global.myCustomVars = {
-  const: {CHUNK: 5},
+  const: {CHUNK: 1},
   function: {}
 }
 
