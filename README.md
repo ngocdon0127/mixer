@@ -18,7 +18,7 @@
 ##### Start MongoDB
 	$ mongod --dbpath="path\to\mongodb\storage\directory"
 
-##### Change line 7 in file config/config.js from url: ``'mongodb://user:pwd@127.0.0.1:27017/mixer'`` to the real user and password
+##### Change line 7 in file config/config.js from url: ``'mongodb://user:pwd@127.0.0.1:27017/mixer'`` to the real url
 
 ### 3. Install pm2
 	$ npm install -g pm2
