@@ -11,7 +11,7 @@ const Participation = mongoose.model('Participation')
 const RSAUtils = require('../utils/RSAUtils')
 const fs = require('fs');
 const path = require('path')
-const HOST = 'http://10.9.0.1:2000'
+const HOST = 'http://localhost:2000'
 
 const PAR_STT_PENDING = 'pending'
 const PAR_STT_RECEIVED = 'received'

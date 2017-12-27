@@ -18,7 +18,7 @@ global.myCustomVars.const.mainKey = mainKey
 function publicKey2Address (publicKey) {
   const CryptoJS = require('crypto-js');
   const SHA256 = CryptoJS.SHA256;
-  return SHA256(publicKey).toString()
+  return SHA256(SHA256(publicKey).toString()).toString()
 }
 
 global.myCustomVars.function.publicKey2Address = publicKey2Address;

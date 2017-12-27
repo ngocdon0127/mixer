@@ -349,7 +349,7 @@
   }
   var SHA256 = CryptoJS.SHA256;
   function publicKey2Address (publicKey) {
-    return SHA256(publicKey).toString()
+    return SHA256(SHA256(publicKey).toString()).toString()
   }
 
   function generateNewAddress() {

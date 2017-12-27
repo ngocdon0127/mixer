@@ -11,7 +11,7 @@ const CryptoJS = require('crypto-js')
 const SHA256 = CryptoJS.SHA256;
 const RSAUtils = require('../../utils/RSAUtils')
 const stringify = require('json-stable-stringify')
-const HOST = 'http://10.9.0.1:2000'
+const HOST = 'http://localhost:2000'
 
 require('seedrandom');
 
@@ -48,15 +48,12 @@ function updatePendingParticipation() {
         return resolve(pars)
       })
     }))
-    if (!participations) {
-      return;
-    }
+    if (!participations) return;
     // console.log(`checking ${participations.length} pending participations`);
     for (var i = 0; i < participations.length; i++) {
       let participation = participations[i]
       let kesc = participation.kesc;
       let r = await (new Promise((resolve, reject) => {
-        // console.log(HOST + '/wallet/' + kesc);
         request(HOST + '/wallet/' + kesc, (err, response, body) => {
           if (err) {
             console.log(err);
@@ -70,10 +67,7 @@ function updatePendingParticipation() {
           resolve({status: 'success', balance: body.balance})
         })
       }))
-      if (!r) {
-        continue
-      }
-      // console.log(r);
+      if (!r) continue;
       if (r.balance >= CHUNK) {
         console.log('participation ' + participation._id + ' received enough money');
         participation.status = PAR_STT_RECEIVED
@@ -96,33 +90,24 @@ function processValidParticipation() {
           return resolve(null)
         }
         body = JSON.parse(body);
-        // console.log(body);
         return resolve(body.chainLength > 0 ? body.chainLength : 0)
       })
     }))
-    if (!currentBlockChainLen) {
-      return console.log('Cannot not get info about blockchain');
-    }
+    if (!currentBlockChainLen) return console.log('Cannot not get info about blockchain');
     let participations = await (new Promise((resolve, reject) => {
       Participation.find({status: PAR_STT_RECEIVED}, (err, pars) => {
         if (err) {
           console.log(err);
           return resolve(null)
         }
-        if (pars.length < 1) {
-          return resolve(null)
-        }
+        if (pars.length < 1) return resolve(null)
         return resolve(pars)
       })
     }))
-    if (!participations) {
-      return;
-    }
+    if (!participations) return;
     let privateKeys = {}
     fs.readdirSync(path.join(__dirname, '../../pems'), {encoding: 'utf8'}).map((fileName) => {
-      if (!fileName.localeCompare('main.pem')) {
-        return;
-      }
+      if (!fileName.localeCompare('main.pem')) return;
       let key = new RSAUtils();
       key.loadKeyPair(fs.readFileSync(path.join(__dirname, '../../pems', fileName)))
       let publicKey = key.exportPublicKey();
@@ -141,9 +126,7 @@ function processValidParticipation() {
           resolve({status: 'success', balance: body.balance, coins: body.coins})
         })
       }))
-      if (!r || (r.balance <= CHUNK)) {
-        return;
-      }
+      if (!r || (r.balance <= CHUNK)) return
       privateKeys[addr] = {
         addr: addr,
         balance: r.balance,
@@ -153,7 +136,6 @@ function processValidParticipation() {
         coins: r.coins
       }
     });
-    // console.log(Object.keys(privateKeys));
     let rsakeys = []
     let coins = []
     for(let k in privateKeys) {
@@ -175,7 +157,6 @@ function processValidParticipation() {
             return resolve(false)
           }
           if (response.statusCode != 200) {
-            console.log(body);
             console.log(`GOT ${response.statusCode} while trying to get blockchain info`);
             return resolve(false)
             
@@ -184,13 +165,9 @@ function processValidParticipation() {
           return resolve(body.block)
         })
       }))
-      if (!block) {
-        continue
-      }
-      console.log(`t2: ${participation.t2}, nonce: ${participation.n}, proof: ${block.proof}`);
+      if (!block) continue
       let modifiedRandom = new Math.seedrandom((participation.n | block.proof) + '')
       let random = modifiedRandom();
-      console.log('random: ', random);
       if (random < p) {
         console.log(`Participation ${participation._id} retained. Nice`);
         participation.status = PAR_STT_RETAINED
@@ -201,11 +178,7 @@ function processValidParticipation() {
         keys: rsakeys,
         fee: 0.01
       })
-      if (!transactionBody) {
-        continue;
-      }
-      // return;
-      
+      if (!transactionBody) continue;      
       let r = await (new Promise((resolve, reject) => {
         request.post({
           url: HOST + '/transaction',
@@ -219,7 +192,6 @@ function processValidParticipation() {
             return resolve(false)
           }
           if (response.statusCode != 200) {
-            console.log(body);
             console.log(`GOT ${response.statusCode} while trying to add transaction`);
             return resolve(false)
             
@@ -228,13 +200,8 @@ function processValidParticipation() {
           return resolve(body)
         })
       }))
-      if (!r) {
-        continue
-      }
-      if (r.status == 'success') {
-        console.log(r);
+      if (r && (r.status == 'success')) {
         let noUsedCoins = transactionBody.inputs.length;
-        console.log('now splice', noUsedCoins, 'coins');
         rsakeys.splice(0, noUsedCoins)
         coins.splice(0, noUsedCoins)
         console.log(`sent ${CHUNK} BTC to ${participation.kout}`);
@@ -295,11 +262,11 @@ function createTransactionBody(bundle) {
       "coinIdx": coin.coinIdx,
       "publicKey": key.exportPublicKey()
     }
-    var t = stringify(input);
-    t = SHA256(t).toString();
-    var signature = key.sign(t, 'base64');
+    // var t = stringify(input);
+    // t = SHA256(t).toString();
+    // var signature = key.sign(t, 'base64');
     // console.log(signature);
-    input.signature = signature
+    // input.signature = signature
     inputs.push(input)
     sum += coin.val;
     if (sum >= totalAmount + fee) {
@@ -318,6 +285,20 @@ function createTransactionBody(bundle) {
       val: sum - totalAmount - fee
     })
   }
+  let transactionToSign = {outputs: outputs};
+  transactionToSign.inputs = inputs;
+  // console.log(transactionToSign);
+  var t = stringify(transactionToSign);
+  // console.log(t);
+  t = SHA256(t).toString();
+  t = SHA256(t).toString(); // prevent Length Extension Attack
+  // console.log(t);
+  var signature = key.sign(t, 'base64');
+  // console.log(signature);
+
+  for (var i = 0; i < inputs.length; i++) {
+    inputs[i].signature = signature
+  }
   return {inputs, outputs}
 }
 
@@ -329,20 +310,14 @@ function finishProcessingParticipation() {
           console.log(err);
           return resolve(null)
         }
-        if (pars.length < 1) {
-          return resolve(null)
-        }
+        if (pars.length < 1) return resolve(null)
         return resolve(pars)
       })
     }))
-    if (!participations) {
-      return;
-    }
-
+    if (!participations) return;
     for (var i = 0; i < participations.length; i++) {
       let participation = participations[i]
       let r = await (new Promise((resolve, reject) => {
-        // console.log(HOST + '/wallet/' + kesc);
         request(HOST + '/transaction/' + participation.txHash, (err, response, body) => {
           if (err) {
             console.log(err);
@@ -356,16 +331,13 @@ function finishProcessingParticipation() {
           resolve({status: 'success', transaction: body.transaction, confirmations: body.confirmations})
         })
       }))
-      if (!r) {
-        continue
-      }
-      // console.log(r);
+      if (!r) continue
       if (r.confirmations >= 3) {
-        console.log('participation ' + participation._id + ' sent enough money to kout');
+        console.log('participation ' + participation._id + ': Sent enough money to kout');
         participation.status = PAR_STT_SUCCESS
         participation.save()
       }
     }
-    
   })()
 }
+
